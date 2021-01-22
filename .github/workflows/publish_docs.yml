@@ -1,0 +1,44 @@
+# On any push to master, this workflow will use the datawarehouse CLI to automatically build and publish
+# documentation to confluence. It does this by:
+# * creating a local, empty copy of the datawarehouse (init_db)
+# * using the metadata embedded in this schema, it build the docs (build_docs)
+# * built docs are then published to confluence (make conflence)
+name: Publish Docs to Confluence
+
+# only trigger on pull request closed events against master
+on:
+  pull_request:
+    types:
+    - closed
+    branches:
+    - master
+jobs:
+  publish_docs:
+    # only run if PR close came from a merge
+    if: github.event.pull_request.merged == true
+    name: Publish Docs to Confluence
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+    - name: Setup MySQL
+      run: |
+        sudo apt-get update && sudo apt-get install graphviz libsasl2-dev # https://stackoverflow.com/a/52366692
+        sudo chown $(whoami) /etc/mysql/my.cnf
+        echo '[mysqld]' >> /etc/mysql/my.cnf
+        echo 'sql-mode="NO_ENGINE_SUBSTITUTION"' >> /etc/mysql/my.cnf
+        sudo /etc/init.d/mysql start
+        # Credentials found in /etc/mysql/debian.cnf used by DWH cli to connect to DB
+        echo user=$(sudo grep -m 1 -r user /etc/mysql/debian.cnf | awk '{split($0, a, "= "); print a[2]}') >> $GITHUB_ENV
+        echo password=$(sudo grep -m 1 -r password /etc/mysql/debian.cnf | awk '{split($0, a, "= "); print a[2]}') >> $GITHUB_ENV
+        sudo cat /etc/mysql/my.cnf
+    - name: Enable Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+    - name: set PY
+      run: |
+        echo "PY=$(python --version --version | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+        echo "/home/runner/.local/bin" >> $GITHUB_PATH
