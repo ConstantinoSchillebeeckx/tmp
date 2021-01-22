@@ -11,7 +11,7 @@ on:
     types:
     - closed
     branches:
-    - master
+    - main
 jobs:
   publish_docs:
     # only run if PR close came from a merge
